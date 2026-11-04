@@ -1,0 +1,109 @@
+<!doctype html>
+<!--
+  Pagina de conexao do WhatsApp (coexistencia) - Escritorio Contalsul.
+  Publicada no GitHub Pages em https://conectar.econtalsul.com.br so ate a
+  analise do app ser aprovada. NAO colocar chave, token ou senha aqui:
+  tudo neste arquivo fica publico. O envio de mensagens e feito pelo
+  servidor (Agenda), com o token do usuario do sistema em _dados_locais.
+-->
+<html lang="pt-BR">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="robots" content="noindex, nofollow">
+<title>Conectar WhatsApp - Escritório Contalsul</title>
+<style>
+  :root { --verde: #1f7a4d; --cinza: #5b6470; --fundo: #f5f7f6; }
+  * { box-sizing: border-box; }
+  body { margin: 0; font-family: Segoe UI, Roboto, Arial, sans-serif; background: var(--fundo); color: #1d2329; }
+  main { max-width: 560px; margin: 48px auto; padding: 0 16px; }
+  .cartao { background: #fff; border-radius: 12px; padding: 28px; box-shadow: 0 1px 4px rgba(0,0,0,.08); }
+  h1 { font-size: 22px; margin: 0 0 8px; }
+  p { color: var(--cinza); line-height: 1.5; }
+  button { width: 100%; padding: 14px; border: 0; border-radius: 8px; background: var(--verde); color: #fff; font-size: 16px; cursor: pointer; }
+  button:disabled { background: #9bb8a9; cursor: default; }
+  #situacao { margin-top: 20px; padding: 14px; border-radius: 8px; background: var(--fundo); white-space: pre-wrap; font-size: 14px; display: none; }
+  footer { text-align: center; font-size: 12px; color: var(--cinza); margin-top: 16px; }
+  footer a { color: var(--cinza); }
+</style>
+</head>
+<body>
+<main>
+  <div class="cartao">
+    <h1>Conectar WhatsApp</h1>
+    <p>Liga o WhatsApp Business do escritório ao sistema de envio de documentos.
+       O WhatsApp continua funcionando normalmente no celular.</p>
+    <p>Tenha o celular do número em mãos: a confirmação é feita nele.</p>
+    <button id="botao" disabled>Carregando...</button>
+    <div id="situacao"></div>
+  </div>
+  <footer>Escritório Contalsul · <a href="https://www.econtalsul.com.br/politica-de-privacidade">Política de Privacidade</a></footer>
+</main>
+
+<script>
+  // Dados publicos do app (aparecem em qualquer tela de login do Facebook)
+  const APP_ID = '1339386324852541';
+  const CONFIG_ID = '2312852919567854';  // Login do Facebook para Empresas -> Configuracoes
+  const VERSAO_API = 'v24.0';
+
+  const botao = document.getElementById('botao');
+  const situacao = document.getElementById('situacao');
+  const resultado = {};
+
+  function mostrar(texto) {
+    situacao.style.display = 'block';
+    situacao.textContent = texto;
+  }
+
+  window.fbAsyncInit = function () {
+    FB.init({ appId: APP_ID, autoLogAppEvents: true, xfbml: false, version: VERSAO_API });
+    botao.disabled = false;
+    botao.textContent = 'Conectar WhatsApp';
+  };
+
+  // Resultado do cadastro (numero e conta) chega por mensagem da janela da Meta
+  window.addEventListener('message', function (evento) {
+    if (!/(^|\.)facebook\.com$/.test(new URL(evento.origin).hostname)) return;
+    let dados;
+    try { dados = JSON.parse(evento.data); } catch (e) { return; }
+    if (dados.type !== 'WA_EMBEDDED_SIGNUP') return;
+    if (dados.event === 'CANCEL') {
+      mostrar('Cadastro interrompido' + (dados.data && dados.data.current_step ? ' na etapa: ' + dados.data.current_step : '') + '.\nNada foi alterado.');
+      return;
+    }
+    if (dados.event === 'ERROR' || (dados.data && dados.data.error_message)) {
+      mostrar('A Meta informou um erro:\n' + (dados.data.error_message || JSON.stringify(dados.data)));
+      return;
+    }
+    Object.assign(resultado, dados.data || {}, { evento: dados.event });
+    mostrar('Conectado! Anote e envie para o Claude:\n\n' +
+      'Evento: ' + dados.event + '\n' +
+      'phone_number_id: ' + (resultado.phone_number_id || '-') + '\n' +
+      'waba_id: ' + (resultado.waba_id || '-') + '\n' +
+      'business_id: ' + (resultado.business_id || '-'));
+  });
+
+  function aoVoltarDoLogin(resposta) {
+    // O codigo de troca nao e usado: o numero e da propria Contalsul e o
+    // servidor usa o token do usuario do sistema do portfolio.
+    if (!resposta.authResponse && !resultado.evento) {
+      mostrar('A janela foi fechada antes de terminar. Nada foi alterado.');
+    }
+  }
+
+  botao.addEventListener('click', function () {
+    FB.login(aoVoltarDoLogin, {
+      config_id: CONFIG_ID,
+      response_type: 'code',
+      override_default_response_type: true,
+      extras: {
+        setup: {},
+        featureType: 'whatsapp_business_app_onboarding',
+        sessionInfoVersion: '3'
+      }
+    });
+  });
+</script>
+<script async defer crossorigin="anonymous" src="https://connect.facebook.net/pt_BR/sdk.js"></script>
+</body>
+</html>
