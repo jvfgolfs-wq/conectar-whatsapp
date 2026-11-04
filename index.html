@@ -83,15 +83,30 @@
       'business_id: ' + (resultado.business_id || '-'));
   });
 
+  let aguardando = false;
+
   function aoVoltarDoLogin(resposta) {
     // O codigo de troca nao e usado: o numero e da propria Contalsul e o
     // servidor usa o token do usuario do sistema do portfolio.
+    aguardando = false;
     if (!resposta.authResponse && !resultado.evento) {
       mostrar('A janela foi fechada antes de terminar. Nada foi alterado.');
     }
   }
 
+  // Se a janela da Meta for fechada no X, o SDK nem sempre avisa: quando a
+  // pagina volta a ter o foco e nada chegou, mostra o aviso mesmo assim.
+  window.addEventListener('focus', function () {
+    setTimeout(function () {
+      if (aguardando && !resultado.evento) {
+        mostrar('A janela da Meta foi fechada antes de terminar. Nada foi alterado.');
+      }
+    }, 1500);
+  });
+
   botao.addEventListener('click', function () {
+    aguardando = true;
+    situacao.style.display = 'none';
     FB.login(aoVoltarDoLogin, {
       config_id: CONFIG_ID,
       response_type: 'code',
